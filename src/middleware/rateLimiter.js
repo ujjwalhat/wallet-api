@@ -1,10 +1,20 @@
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import ratelimit from "../config/upstash.js";
 
-// Create a new rate limiter that limits to 5 requests per 10 seconds per identifier
-const ratelimit = new Ratelimit({
-  redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(5, "10 s"),
-});
+const rateLimiter = async (req, res, next) => {
+  try {
+    const { success } = await ratelimit.limit("my-rate-limit");
 
-export default ratelimit;
+    if (!success) {
+      return res.status(429).json({
+        message: "Too many requests, please try again later.",
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.log("Rate limit error", error);
+    next(error);
+  }
+};
+
+export default rateLimiter;
